@@ -1,0 +1,17 @@
+#cloud-config
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-plugin
+  - iptables-persistent
+
+system_info:
+  default_user:
+    groups: [docker]
+
+runcmd:
+  - mkdir -p /opt/minecraft/addons/behavior_packs /opt/minecraft/addons/resource_packs
+  - iptables -I INPUT -m state --state NEW -p udp --dport 19132 -j ACCEPT
+  - netfilter-persistent save
+  - systemctl enable docker
+  - systemctl start docker

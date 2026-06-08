@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in your values.
+#
+# Find your compartment OCID: OCI Console -> Identity -> Compartments
+compartment_id = "ocid1.compartment.oc1..xxxxxxxx"
+
+# Must match the region where you look up the Ubuntu ARM image
+region = "ap-singapore-1"
+
+# Public key for SSH access (must match SSH_PRIVATE_KEY GitHub secret)
+ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"
+
+# Ubuntu 22.04 aarch64 image OCID for your region. Example lookup:
+#   oci compute image list \
+#     --compartment-id <tenancy-ocid> \
+#     --operating-system "Canonical Ubuntu" \
+#     --operating-system-version "22.04" \
+#     --shape "VM.Standard.A1.Flex" \
+#     --query "data[?contains(\"display-name\", 'aarch64')].{name:\"display-name\",id:id}" \
+#     --output table
+ubuntu_aarch64_image_id = "ocid1.image.oc1..xxxxxxxx"
