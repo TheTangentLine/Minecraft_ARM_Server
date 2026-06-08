@@ -1,0 +1,27 @@
+services:
+  bedrock:
+    image: itzg/minecraft-bedrock-server
+    container_name: bedrock-server
+    platform: linux/arm64
+    environment:
+      EULA: "TRUE"
+      GAMEMODE: survival
+      DIFFICULTY: hard
+      SERVER_NAME: "Bedrock CI/CD Server"
+      ALLOW_CHEATS: "false"
+      VIEW_DISTANCE: "16"
+      TICK_DISTANCE: "4"
+      MAX_THREADS: "2"
+      PLAYER_IDLE_TIMEOUT: "30"
+    ports:
+      - "19132:19132/udp"
+    volumes:
+      # Stateful volume managed by Docker (your world data)
+      - bedrock-data:/data
+      # Stateless volumes managed by Git (your mods/addons)
+      - ./addons/behavior_packs:/data/behavior_packs
+      - ./addons/resource_packs:/data/resource_packs
+    restart: unless-stopped
+
+volumes:
+  bedrock-data:
