@@ -1,0 +1,35 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Secrets & keys
+.env
+.env.*
+*.pem
+id_rsa
+id_ed25519
+*.key
+
+# Docker local state (world data lives on the server volume)
+bedrock-data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors & IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
