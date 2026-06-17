@@ -2,6 +2,7 @@
 
 SSH_KEY_PATH ?= $(HOME)/.ssh/minecraft_oci
 SSH_USER ?= ubuntu
+SSH_HOST ?=
 
 help:
 	@echo "Available targets:"
@@ -17,6 +18,7 @@ help:
 	@echo "  make sync-app     - Copy docker-compose.yml and addons/ to VM"
 	@echo "  make restart-app  - Pull and restart Bedrock container on VM"
 	@echo "  make deploy       - sync-app + restart-app"
+	@echo "  set SSH_HOST=<magicdns-host> (required for deploy targets)"
 
 keygen:
 	@if [ -f "$(SSH_KEY_PATH)" ] || [ -f "$(SSH_KEY_PATH).pub" ]; then \
@@ -69,9 +71,17 @@ tf-destroy:
 	cd terraform && terraform destroy
 
 sync-app:
-	scp -i "$(SSH_KEY_PATH)" -r docker-compose.yml addons $(SSH_USER)@$$(cd terraform && terraform output -raw public_ip):/opt/minecraft/
+	@if [ -z "$(SSH_HOST)" ]; then \
+		echo "SSH_HOST is required. Example: make deploy SSH_HOST=mc-bedrock.yourtailnet.ts.net"; \
+		exit 1; \
+	fi
+	scp -i "$(SSH_KEY_PATH)" -r docker-compose.yml addons $(SSH_USER)@$(SSH_HOST):/opt/minecraft/
 
 restart-app:
-	ssh -i "$(SSH_KEY_PATH)" $(SSH_USER)@$$(cd terraform && terraform output -raw public_ip) 'cd /opt/minecraft && sudo docker compose pull && sudo docker compose up -d --remove-orphans && sudo docker compose ps'
+	@if [ -z "$(SSH_HOST)" ]; then \
+		echo "SSH_HOST is required. Example: make deploy SSH_HOST=mc-bedrock.yourtailnet.ts.net"; \
+		exit 1; \
+	fi
+	ssh -i "$(SSH_KEY_PATH)" $(SSH_USER)@$(SSH_HOST) 'cd /opt/minecraft && sudo docker compose pull && sudo docker compose up -d --remove-orphans && sudo docker compose ps'
 
 deploy: sync-app restart-app
