@@ -19,6 +19,12 @@ variable "ubuntu_aarch64_image_id" {
   description = "OCID of Ubuntu 22.04 aarch64 image in your region"
 }
 
+variable "tailscale_authkey" {
+  type        = string
+  description = "Tailscale auth key used by cloud-init for first boot tailnet join"
+  sensitive   = true
+}
+
 variable "vcn_cidr" {
   type        = string
   description = "CIDR block for the VCN"

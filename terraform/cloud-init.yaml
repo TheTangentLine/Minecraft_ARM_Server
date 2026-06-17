@@ -4,6 +4,7 @@ packages:
   - docker.io
   - docker-compose-plugin
   - iptables-persistent
+  - curl
 
 system_info:
   default_user:
@@ -13,5 +14,7 @@ runcmd:
   - mkdir -p /opt/minecraft/addons/behavior_packs /opt/minecraft/addons/resource_packs
   - iptables -I INPUT -m state --state NEW -p udp --dport 19132 -j ACCEPT
   - netfilter-persistent save
+  - sh -c 'curl -fsSL https://tailscale.com/install.sh | sh'
+  - tailscale up --authkey='${tailscale_authkey}' --ssh
   - systemctl enable docker
   - systemctl start docker

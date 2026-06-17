@@ -1,4 +1,4 @@
-# 1. Open the Oracle Cloud VCN Firewall for Bedrock (UDP 19132)
+# 1. Open the Oracle Cloud VCN Firewall for Bedrock (UDP 19132 only)
 resource "oci_core_security_list" "minecraft_sl" {
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.minecraft_vcn.id
@@ -11,16 +11,6 @@ resource "oci_core_security_list" "minecraft_sl" {
     udp_options {
       min = 19132
       max = 19132
-    }
-  }
-  
-  # Standard SSH Port
-  ingress_security_rules {
-    protocol = "6" # 6 is TCP
-    source   = "0.0.0.0/0"
-    tcp_options {
-      min = 22
-      max = 22
     }
   }
   
@@ -60,6 +50,8 @@ resource "oci_core_instance" "minecraft_server" {
   # Pass the cloud-init file into the VM
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(file("${path.module}/cloud-init.yaml"))
+    user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
+      tailscale_authkey = var.tailscale_authkey
+    }))
   }
 }

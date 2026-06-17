@@ -9,6 +9,11 @@ region = "ap-singapore-1"
 # Public key for SSH access (must match SSH_PRIVATE_KEY GitHub secret)
 ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"
 
+# Tailscale auth key used by cloud-init for first-boot VM join.
+# Use a reusable key (single-use will fail on future VM recreate).
+# If your tailnet enforces device approval, ensure this node is auto-approved/pre-approved.
+tailscale_authkey = "tskey-auth-xxxxxxxx"
+
 # Ubuntu 22.04 aarch64 image OCID for your region. Example lookup:
 #   oci compute image list \
 #     --compartment-id <tenancy-ocid> \

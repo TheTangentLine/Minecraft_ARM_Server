@@ -8,7 +8,7 @@ data "oci_core_vnic" "minecraft_vnic" {
 }
 
 output "public_ip" {
-  description = "Public IP of the Minecraft server (use as SSH_HOST secret)"
+  description = "Public IP of the Minecraft server (Bedrock client endpoint, not CD SSH host)"
   value       = data.oci_core_vnic.minecraft_vnic.public_ip_address
 }
 
