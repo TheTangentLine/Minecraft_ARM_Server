@@ -1,6 +1,16 @@
 # Minecraft Bedrock ARM Server on OCI
 
-Run a Minecraft Bedrock server on an Oracle Cloud ARM VM using Terraform, cloud-init, Docker, and Tailscale.
+> Run a Minecraft Bedrock server on an Oracle Cloud ARM VM — free tier, private admin access via Tailscale.
+
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform&logoColor=white)
+![OCI](https://img.shields.io/badge/Oracle_Cloud-F80000?style=flat&logo=oracle&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![Tailscale](https://img.shields.io/badge/Tailscale-242424?style=flat&logo=tailscale&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu_22.04_ARM-E95420?style=flat&logo=ubuntu&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+
+---
 
 ## Infrastructure
 
@@ -30,8 +40,10 @@ flowchart TD
 Terraform creates the VCN, internet gateway, route table, subnet, security list, and ARM instance. cloud-init bootstraps Docker and Tailscale on first boot.
 
 > [!IMPORTANT]
-> Terraform provisions infrastructure only.  
+> Terraform provisions infrastructure only.
 > It does **not** start the Bedrock container. Run `make deploy` after `make tf-apply`.
+
+---
 
 ## Access Model
 
@@ -54,44 +66,53 @@ flowchart LR
 ```
 
 - **Players** connect directly to the public IP on UDP `19132`.
-- **Admin / CI** join the Tailscale tailnet and connect to the VM's MagicDNS hostname over SSH (port 22 is only reachable from within the tailnet, not from the public internet).
+- **Admin / CI** join the Tailscale tailnet and connect to the VM's MagicDNS hostname over SSH — port 22 is only reachable from within the tailnet.
+
+---
 
 ## Quick Start
 
-### 1) Clone your fork
+### Step 0 — Prerequisites
 
-```bash
-git clone https://github.com/<your-username>/Minecraft_ARM_Server.git
-cd Minecraft_ARM_Server
-```
+Before you begin, make sure you have:
 
-Optional upstream remote:
-
-```bash
-git remote add upstream https://github.com/TheTangentLine/Minecraft_ARM_Server.git
-git fetch upstream
-```
-
-### 2) Install prerequisites
-
-- OCI account with Ampere A1 availability
-- Terraform
-- OCI CLI
-- `make`, `git`, `ssh`, `scp`
+- An OCI account with [Always Free Ampere A1](https://www.oracle.com/cloud/free/) eligibility
+- [Terraform](https://developer.hashicorp.com/terraform/install)
+- [OCI CLI](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm)
+- [Tailscale](https://tailscale.com/download) account and client
+- `make`, `git`, `ssh`, `scp` (standard on macOS/Linux)
 
 > [!WARNING]
-> OCI Always Free limits can change. Confirm current limits in your tenancy before applying.
+> OCI Always Free limits can change. Confirm current limits in your tenancy console before applying.
 
-### 3) Set up OCI CLI
+---
+
+### Step 1 — Set up Tailscale
+
+1. [Sign up for Tailscale](https://tailscale.com/) (free for personal use).
+2. In the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys), generate **two** auth keys:
+
+| Key | Purpose | Where it goes |
+| --- | ------- | ------------- |
+| VM key (reusable) | First-boot VM join | `tailscale_authkey` in `terraform.tfvars` |
+| CI key (ephemeral) | GitHub Actions runner join | `TAILSCALE_AUTHKEY_CI` GitHub secret |
+
+> [!NOTE]
+> Use a **reusable** key for the VM. A single-use key will fail if you ever recreate the instance with `terraform destroy` + `terraform apply`.
+>
+> If your tailnet enforces device approval, ensure the VM node is auto-approved or pre-approved.
+
+---
+
+### Step 2 — Set up OCI CLI
 
 macOS:
 
 ```bash
-brew update
-brew install oci-cli
+brew update && brew install oci-cli
 ```
 
-Linux/macOS installer:
+Linux / macOS (official installer):
 
 ```bash
 bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
@@ -105,25 +126,50 @@ oci iam region list --output table
 ```
 
 > [!NOTE]
-> Do not put OCI credentials in `terraform.tfvars`.  
-> Terraform auth should come from OCI CLI config, environment variables, or instance principal.
+> Do not put OCI credentials in `terraform.tfvars`.
+> Terraform reads auth from OCI CLI config (`~/.oci/config`), environment variables, or instance principal.
 
-### 4) Generate SSH key and initialize tfvars
+---
+
+### Step 3 — Fork and clone
+
+1. Click **Fork** on GitHub to create your own copy.
+2. Clone your fork:
 
 ```bash
-make keygen
-make tfvars-init
+git clone https://github.com/<your-username>/Minecraft_ARM_Server.git
+cd Minecraft_ARM_Server
 ```
 
-Fill `terraform/terraform.tfvars`:
+Optional — track the original repo for updates:
 
-- `compartment_id`
-- `region`
-- `ssh_public_key` (from `make spub`)
-- `tailscale_authkey` (VM first-boot tailnet join key)
-- `ubuntu_aarch64_image_id`
+```bash
+git remote add upstream https://github.com/TheTangentLine/Minecraft_ARM_Server.git
+git fetch upstream
+```
 
-Get Ubuntu 22.04 ARM image OCID:
+---
+
+### Step 4 — Configure secrets and tfvars
+
+**Generate SSH key and init tfvars:**
+
+```bash
+make keygen        # generates ~/.ssh/minecraft_oci
+make tfvars-init   # copies terraform.tfvars.example -> terraform.tfvars
+```
+
+**Fill `terraform/terraform.tfvars`:**
+
+| Variable | Value |
+| -------- | ----- |
+| `compartment_id` | OCI Console → Identity → Compartments |
+| `region` | e.g. `ap-singapore-1` |
+| `ssh_public_key` | from `make spub` |
+| `tailscale_authkey` | VM reusable key from Step 1 |
+| `ubuntu_aarch64_image_id` | lookup below |
+
+Look up Ubuntu 22.04 ARM image OCID:
 
 ```bash
 oci compute image list \
@@ -135,7 +181,21 @@ oci compute image list \
   --output table
 ```
 
-### 5) Provision infrastructure
+**Add GitHub repository secrets** (for CD to work):
+
+| Secret | Value |
+| ------ | ----- |
+| `TAILSCALE_AUTHKEY_CI` | CI ephemeral key from Step 1 |
+| `SSH_HOST_TS` | VM MagicDNS hostname (e.g. `mc-bedrock.yourtailnet.ts.net`) |
+| `SSH_USER` | `ubuntu` |
+| `SSH_PRIVATE_KEY` | contents of `~/.ssh/minecraft_oci` (from `make spri`) |
+
+> [!NOTE]
+> `SSH_HOST_TS` is the MagicDNS name, available in Tailscale admin after the VM first boots and joins the tailnet. You can set it after Step 5.
+
+---
+
+### Step 5 — Provision infrastructure
 
 ```bash
 make tf-init
@@ -143,24 +203,29 @@ make tf-plan
 make tf-apply
 ```
 
-### 6) Deploy Bedrock
+After apply completes, the VM is running and Tailscale joins on first boot (via cloud-init). Note the `public_ip` output for Step 6.
+
+---
+
+### Step 6 — Deploy Bedrock
 
 ```bash
 make deploy SSH_HOST=mc-bedrock.yourtailnet.ts.net
 ```
 
 > [!TIP]
-> `SSH_HOST` is required for local deploy targets (`make sync-app`, `make restart-app`, `make deploy`).  
-> Use your VM's Tailscale MagicDNS hostname.
+> `SSH_HOST` is required for all local deploy targets. Use your VM's Tailscale MagicDNS hostname.
 
 Connect from Minecraft Bedrock:
 
-- Host: `$(cd terraform && terraform output -raw public_ip)`
-- Port: `19132` (UDP)
+- **Host**: `terraform output -raw public_ip`
+- **Port**: `19132` (UDP)
 
-## Configure CI/CD
+---
 
-### CI (compose validation)
+## CI/CD
+
+### CI — compose validation
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`:
 
@@ -168,53 +233,52 @@ Connect from Minecraft Bedrock:
 docker compose -f docker-compose.yml config -q
 ```
 
-If compose is invalid, CI fails.
+Fails if `docker-compose.yml` is invalid.
 
-### CD (deploy)
+### CD — deploy
 
-`.github/workflows/cd.yml` runs on pushes to `main` and:
+`.github/workflows/cd.yml` runs on push to `main`:
 
-1. Joins tailnet with `tailscale/github-action@v2`
-2. Copies `docker-compose.yml` and `addons/` to `/opt/minecraft`
-3. Runs `docker compose pull` and `docker compose up -d --remove-orphans`
-
-GitHub repository secrets used by CD:
-
-- `TAILSCALE_AUTHKEY_CI`
-- `SSH_HOST_TS` (MagicDNS hostname)
-- `SSH_USER` (usually `ubuntu`)
-- `SSH_PRIVATE_KEY` (must match `ssh_public_key`)
+1. Joins tailnet via `tailscale/github-action@v2` using `TAILSCALE_AUTHKEY_CI`
+2. Copies `docker-compose.yml` and `addons/` to `/opt/minecraft` via SCP
+3. Runs `docker compose pull` + `docker compose up -d --remove-orphans`
 
 > [!NOTE]
-> `tailscale_authkey` in `terraform.tfvars` is for the VM.  
-> `TAILSCALE_AUTHKEY_CI` in GitHub secrets is for CI runner tailnet join.
-
-> [!NOTE]
-> CD uses OpenSSH key authentication over the Tailscale network (`SSH_PRIVATE_KEY` + `SSH_HOST_TS`).  
+> CD uses OpenSSH key authentication over the Tailscale network.
 > It does **not** use `tailscale ssh`.
+
+---
 
 ## Local Operations
 
-Run `make help` to list all commands.
+```bash
+make help
+```
 
-Main targets:
+| Command | Description |
+| ------- | ----------- |
+| `make keygen` | Generate SSH key pair at `~/.ssh/minecraft_oci` |
+| `make spub` | Print public key |
+| `make spri` | Print private key |
+| `make tfvars-init` | Copy `terraform.tfvars.example` → `terraform.tfvars` |
+| `make tf-init` / `tf-plan` / `tf-apply` | Terraform lifecycle |
+| `make tf-output` | Show Terraform outputs |
+| `make tf-destroy` | Destroy all OCI infrastructure |
+| `make sync-app` | Copy compose + addons to VM |
+| `make restart-app` | Pull image and restart container |
+| `make deploy` | `sync-app` + `restart-app` |
 
-- `make keygen`, `make spub`, `make spri`
-- `make tfvars-init`
-- `make tf-init`, `make tf-plan`, `make tf-apply`, `make tf-output`, `make tf-destroy`
-- `make sync-app`, `make restart-app`, `make deploy`
+Optional overrides for deploy targets:
 
-Optional `make deploy` overrides:
+```bash
+make deploy SSH_HOST=<magicdns> SSH_USER=ubuntu SSH_KEY_PATH=~/.ssh/minecraft_oci
+```
 
-- `SSH_KEY_PATH`
-- `SSH_USER`
-- `SSH_HOST` (if set, it overrides Terraform `public_ip` output)
+---
 
 ## Backups
 
-World data is in Docker volume `bedrock-data`.
-
-Example backup:
+World data lives in Docker volume `bedrock-data` on the VM.
 
 ```bash
 ssh -i ~/.ssh/minecraft_oci ubuntu@<host> \
@@ -223,32 +287,37 @@ scp -i ~/.ssh/minecraft_oci ubuntu@<host>:/tmp/bedrock-backup.tar.gz .
 ```
 
 > [!IMPORTANT]
-> Back up world data before `make tf-destroy` or `terraform destroy`.  
-> Destroying the instance removes VM-local Docker volumes.
+> Back up world data **before** `make tf-destroy`. Destroying the instance removes VM-local Docker volumes.
+
+---
 
 ## Security Posture
 
-- OCI security list keeps public UDP `19132` for Bedrock players.
-- Public TCP `22` ingress is removed.
-- Admin/automation SSH is expected over Tailscale.
+- OCI security list keeps public UDP `19132` open for Bedrock players.
+- Public TCP `22` ingress is removed — SSH is only reachable over Tailscale.
+- Admin and CI automation connect via tailnet SSH with key auth.
 
 > [!WARNING]
 > Never commit `tailscale_authkey`, `TAILSCALE_AUTHKEY_CI`, or `SSH_PRIVATE_KEY`.
 
 > [!IMPORTANT]
-> `tailscale up --ssh` is enabled in cloud-init for optional Tailscale SSH convenience.  
+> `tailscale up --ssh` is enabled in cloud-init for optional Tailscale SSH convenience.
 > Tailscale SSH connections require SSH grants in your tailnet ACL policy.
+
+---
 
 ## Troubleshooting
 
-- **CD/SSH fails after migration**: verify VM tailnet join with `tailscale status`, confirm `SSH_HOST_TS`, confirm valid `TAILSCALE_AUTHKEY_CI`.
-- **VM did not join tailnet after recreate**: ensure `tailscale_authkey` is reusable (not single-use) and still valid.
-- **Tailnet join succeeds but SSH still denied**: if device approval is enabled, pre-approve/auto-approve the VM node and ensure tailnet SSH ACL grants are configured.
-- **Cannot join server**: confirm UDP `19132` is open in OCI and firewall rule applied by cloud-init.
-- **Container issue**: run `sudo docker compose logs -f bedrock` in `/opt/minecraft`.
-- **`terraform apply` capacity error**: retry later, another availability domain, or another region.
-- **World data seems reset**: ensure `docker-compose.yml` still has `bedrock-data:/data`.
+- **CD/SSH fails**: verify VM joined tailnet (`tailscale status`), confirm `SSH_HOST_TS` and valid `TAILSCALE_AUTHKEY_CI`.
+- **VM did not join tailnet after recreate**: ensure `tailscale_authkey` is reusable, not single-use.
+- **Tailnet join OK but SSH denied**: check device approval and tailnet SSH ACL grants.
+- **Cannot join server**: confirm UDP `19132` is open in OCI security list and iptables rule applied by cloud-init.
+- **Container issue**: `sudo docker compose logs -f bedrock` in `/opt/minecraft`.
+- **`terraform apply` capacity error**: retry later, try a different availability domain or region.
+- **World data reset**: ensure `docker-compose.yml` still mounts `bedrock-data:/data`.
+
+---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).
