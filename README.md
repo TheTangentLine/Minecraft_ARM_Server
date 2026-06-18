@@ -197,6 +197,52 @@ make tf-apply
 
 After apply completes, the VM is running and Tailscale joins on first boot (via cloud-init). Note the `public_ip` output for Step 6.
 
+#### If you hit "Out of host capacity"
+
+OCI Always Free ARM instances are capacity-limited. When `make tf-apply` fails with **Out of host capacity**, retry until a slot opens:
+
+```bash
+# Retry in foreground (unlimited attempts, 5 min between tries)
+make tf-retry
+
+# One attempt only (useful for cron)
+make tf-retry INTERVAL=300 MAX_ATTEMPTS=1
+```
+
+The retry script writes two log files:
+
+| File | Contents |
+| ---- | -------- |
+| `/tmp/tf-retry.log` | One-line summary per attempt (success / failure reason) |
+| `/tmp/tf-retry-raw.log` | Full `terraform apply` output |
+
+Override log paths with `SUMMARY_LOG` and `RAW_LOG` environment variables if needed.
+
+Example summary log:
+
+```text
+2026-06-19 00:45:01 AEST | ATTEMPT 1 started
+2026-06-19 00:45:15 AEST | FAILED | out of host capacity
+2026-06-19 01:10:02 AEST | ATTEMPT 1 started
+2026-06-19 01:12:30 AEST | SUCCESS | public_ip=203.0.113.42
+```
+
+**Optional — cron on an always-on host** (e.g. Raspberry Pi):
+
+1. Copy the repo, `terraform/terraform.tfstate`, and `~/.oci/config` + API key to that host.
+2. Fix `key_file` in `~/.oci/config` to the path on that machine (not your laptop path).
+3. Add a cron job — the script handles logging; do **not** redirect stdout to the summary log:
+
+```cron
+*/5 * * * * cd /home/<user>/Minecraft_ARM_Server && PATH=/usr/local/bin:/usr/bin:/bin INTERVAL=300 MAX_ATTEMPTS=1 /usr/bin/make tf-retry
+```
+
+4. Watch progress: `tail -f /tmp/tf-retry.log` (summary) or `tail -f /tmp/tf-retry-raw.log` (full output).
+5. Remove the cron line after you see `SUCCESS` in the summary log.
+
+> [!NOTE]
+> Only one machine should run `terraform apply` at a time. Stop any foreground `make tf-retry` on your laptop before enabling cron elsewhere.
+
 ---
 
 ### Step 6 — Deploy Bedrock
@@ -254,6 +300,7 @@ make help
 | `make spri`                             | Print private key                                    |
 | `make tfvars-init`                      | Copy `terraform.tfvars.example` → `terraform.tfvars` |
 | `make tf-init` / `tf-plan` / `tf-apply` | Terraform lifecycle                                  |
+| `make tf-retry`                         | Retry `terraform apply` until success (`INTERVAL=300`, `MAX_ATTEMPTS=0`) |
 | `make tf-output`                        | Show Terraform outputs                               |
 | `make tf-destroy`                       | Destroy all OCI infrastructure                       |
 | `make sync-app`                         | Copy compose + addons to VM                          |
@@ -305,7 +352,7 @@ scp -i ~/.ssh/minecraft_oci ubuntu@<host>:/tmp/bedrock-backup.tar.gz .
 - **Tailnet join OK but SSH denied**: check device approval and tailnet SSH ACL grants.
 - **Cannot join server**: confirm UDP `19132` is open in OCI security list and iptables rule applied by cloud-init.
 - **Container issue**: `sudo docker compose logs -f bedrock` in `/opt/minecraft`.
-- **`terraform apply` capacity error**: retry later, try a different availability domain or region.
+- **`terraform apply` capacity error**: use `make tf-retry` or cron with `MAX_ATTEMPTS=1`. Check `/tmp/tf-retry.log` for status and `/tmp/tf-retry-raw.log` for full Terraform output. Remove cron after `SUCCESS`. You can also try a different availability domain or region.
 - **World data reset**: ensure `docker-compose.yml` still mounts `bedrock-data:/data`.
 
 ---
