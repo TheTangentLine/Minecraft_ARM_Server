@@ -1,8 +1,10 @@
-.PHONY: help keygen spub spri tfvars-init tf-init tf-plan tf-apply tf-output tf-destroy sync-app restart-app deploy
+.PHONY: help keygen spub spri tfvars-init tf-init tf-plan tf-apply tf-retry tf-output tf-destroy sync-app restart-app deploy
 
 SSH_KEY_PATH ?= $(HOME)/.ssh/minecraft_oci
 SSH_USER ?= ubuntu
 SSH_HOST ?=
+INTERVAL ?= 300
+MAX_ATTEMPTS ?= 0
 
 help:
 	@echo "Available targets:"
@@ -13,6 +15,7 @@ help:
 	@echo "  make tf-init      - Run terraform init"
 	@echo "  make tf-plan      - Run terraform plan"
 	@echo "  make tf-apply     - Run terraform apply"
+	@echo "  make tf-retry     - Retry terraform apply until success (INTERVAL=300, MAX_ATTEMPTS=0)"
 	@echo "  make tf-output    - Show terraform outputs"
 	@echo "  make tf-destroy   - Run terraform destroy"
 	@echo "  make sync-app     - Copy docker-compose.yml and addons/ to VM"
@@ -63,6 +66,9 @@ tf-plan:
 
 tf-apply:
 	cd terraform && terraform apply
+
+tf-retry:
+	INTERVAL=$(INTERVAL) MAX_ATTEMPTS=$(MAX_ATTEMPTS) bash scripts/retry-tf-apply.sh
 
 tf-output:
 	cd terraform && terraform output

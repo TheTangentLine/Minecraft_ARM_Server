@@ -26,7 +26,7 @@ resource "oci_core_instance" "minecraft_server" {
   compartment_id      = var.compartment_id
   shape               = "VM.Standard.A1.Flex"
 
-  # 2 OCPUs and 12GB RAM is the sweet spot for 5-6 players
+  # 2 OCPUs and 12GB RAM
   shape_config {
     ocpus         = 2
     memory_in_gbs = 12
