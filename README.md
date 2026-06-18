@@ -2,14 +2,6 @@
 
 > Run a Minecraft Bedrock server on an Oracle Cloud ARM VM — free tier, private admin access via Tailscale.
 
-![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform&logoColor=white)
-![OCI](https://img.shields.io/badge/Oracle_Cloud-F80000?style=flat&logo=oracle&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
-![Tailscale](https://img.shields.io/badge/Tailscale-242424?style=flat&logo=tailscale&logoColor=white)
-![Ubuntu](https://img.shields.io/badge/Ubuntu_22.04_ARM-E95420?style=flat&logo=ubuntu&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat)
-
 ---
 
 ## Infrastructure
@@ -92,10 +84,10 @@ Before you begin, make sure you have:
 1. [Sign up for Tailscale](https://tailscale.com/) (free for personal use).
 2. In the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys), generate **two** auth keys:
 
-| Key | Purpose | Where it goes |
-| --- | ------- | ------------- |
-| VM key (reusable) | First-boot VM join | `tailscale_authkey` in `terraform.tfvars` |
-| CI key (ephemeral) | GitHub Actions runner join | `TAILSCALE_AUTHKEY_CI` GitHub secret |
+| Key                | Purpose                    | Where it goes                             |
+| ------------------ | -------------------------- | ----------------------------------------- |
+| VM key (reusable)  | First-boot VM join         | `tailscale_authkey` in `terraform.tfvars` |
+| CI key (ephemeral) | GitHub Actions runner join | `TAILSCALE_AUTHKEY_CI` GitHub secret      |
 
 > [!NOTE]
 > Use a **reusable** key for the VM. A single-use key will fail if you ever recreate the instance with `terraform destroy` + `terraform apply`.
@@ -161,13 +153,13 @@ make tfvars-init   # copies terraform.tfvars.example -> terraform.tfvars
 
 **Fill `terraform/terraform.tfvars`:**
 
-| Variable | Value |
-| -------- | ----- |
-| `compartment_id` | OCI Console → Identity → Compartments |
-| `region` | e.g. `ap-singapore-1` |
-| `ssh_public_key` | from `make spub` |
-| `tailscale_authkey` | VM reusable key from Step 1 |
-| `ubuntu_aarch64_image_id` | lookup below |
+| Variable                  | Value                                 |
+| ------------------------- | ------------------------------------- |
+| `compartment_id`          | OCI Console → Identity → Compartments |
+| `region`                  | e.g. `ap-singapore-1`                 |
+| `ssh_public_key`          | from `make spub`                      |
+| `tailscale_authkey`       | VM reusable key from Step 1           |
+| `ubuntu_aarch64_image_id` | lookup below                          |
 
 Look up Ubuntu 22.04 ARM image OCID:
 
@@ -183,12 +175,12 @@ oci compute image list \
 
 **Add GitHub repository secrets** (for CD to work):
 
-| Secret | Value |
-| ------ | ----- |
-| `TAILSCALE_AUTHKEY_CI` | CI ephemeral key from Step 1 |
-| `SSH_HOST_TS` | VM MagicDNS hostname (e.g. `mc-bedrock.yourtailnet.ts.net`) |
-| `SSH_USER` | `ubuntu` |
-| `SSH_PRIVATE_KEY` | contents of `~/.ssh/minecraft_oci` (from `make spri`) |
+| Secret                 | Value                                                       |
+| ---------------------- | ----------------------------------------------------------- |
+| `TAILSCALE_AUTHKEY_CI` | CI ephemeral key from Step 1                                |
+| `SSH_HOST_TS`          | VM MagicDNS hostname (e.g. `mc-bedrock.yourtailnet.ts.net`) |
+| `SSH_USER`             | `ubuntu`                                                    |
+| `SSH_PRIVATE_KEY`      | contents of `~/.ssh/minecraft_oci` (from `make spri`)       |
 
 > [!NOTE]
 > `SSH_HOST_TS` is the MagicDNS name, available in Tailscale admin after the VM first boots and joins the tailnet. You can set it after Step 5.
@@ -255,18 +247,18 @@ Fails if `docker-compose.yml` is invalid.
 make help
 ```
 
-| Command | Description |
-| ------- | ----------- |
-| `make keygen` | Generate SSH key pair at `~/.ssh/minecraft_oci` |
-| `make spub` | Print public key |
-| `make spri` | Print private key |
-| `make tfvars-init` | Copy `terraform.tfvars.example` → `terraform.tfvars` |
-| `make tf-init` / `tf-plan` / `tf-apply` | Terraform lifecycle |
-| `make tf-output` | Show Terraform outputs |
-| `make tf-destroy` | Destroy all OCI infrastructure |
-| `make sync-app` | Copy compose + addons to VM |
-| `make restart-app` | Pull image and restart container |
-| `make deploy` | `sync-app` + `restart-app` |
+| Command                                 | Description                                          |
+| --------------------------------------- | ---------------------------------------------------- |
+| `make keygen`                           | Generate SSH key pair at `~/.ssh/minecraft_oci`      |
+| `make spub`                             | Print public key                                     |
+| `make spri`                             | Print private key                                    |
+| `make tfvars-init`                      | Copy `terraform.tfvars.example` → `terraform.tfvars` |
+| `make tf-init` / `tf-plan` / `tf-apply` | Terraform lifecycle                                  |
+| `make tf-output`                        | Show Terraform outputs                               |
+| `make tf-destroy`                       | Destroy all OCI infrastructure                       |
+| `make sync-app`                         | Copy compose + addons to VM                          |
+| `make restart-app`                      | Pull image and restart container                     |
+| `make deploy`                           | `sync-app` + `restart-app`                           |
 
 Optional overrides for deploy targets:
 
