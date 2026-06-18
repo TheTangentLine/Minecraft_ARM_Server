@@ -2,16 +2,59 @@
 
 Run a Minecraft Bedrock server on an Oracle Cloud ARM VM using Terraform, cloud-init, Docker, and Tailscale.
 
-## Project Overview
+## Infrastructure
 
-- **Infrastructure**: Terraform creates VCN, subnet, security list, and the ARM compute instance.
-- **Bootstrap**: cloud-init installs Docker and Tailscale on first boot.
-- **Deploy**: local deploy via `Makefile`, automated deploy via GitHub Actions CD.
-- **Validation**: GitHub Actions CI checks `docker-compose.yml` validity.
+```mermaid
+flowchart TD
+    internet([Internet])
+    subgraph oci [OCI Compartment]
+        subgraph vcn [VCN 10.0.0.0/16]
+            igw[Internet Gateway]
+            rt[Route Table]
+            subgraph subnet [Public Subnet 10.0.1.0/24]
+                sl["Security List\nUDP 19132 open / TCP 22 closed"]
+                subgraph vm ["ARM VM — VM.Standard.A1.Flex — 2 OCPU / 12 GB"]
+                    tailscale[Tailscale Agent]
+                    docker[Docker]
+                    bedrock["Bedrock Container\n19132/udp"]
+                    docker --> bedrock
+                end
+            end
+        end
+    end
+    internet -->|"UDP 19132 — players"| sl
+    sl --> bedrock
+    igw --> rt --> subnet
+```
+
+Terraform creates the VCN, internet gateway, route table, subnet, security list, and ARM instance. cloud-init bootstraps Docker and Tailscale on first boot.
 
 > [!IMPORTANT]
 > Terraform provisions infrastructure only.  
 > It does **not** start the Bedrock container. Run `make deploy` after `make tf-apply`.
+
+## Access Model
+
+```mermaid
+flowchart LR
+    players([Minecraft Players])
+    admin([Your Laptop])
+    ci([GitHub Actions])
+    tailnet([Tailscale Tailnet])
+
+    subgraph ocivm [OCI ARM VM]
+        ssh["OpenSSH :22"]
+        bedrock["Bedrock :19132"]
+    end
+
+    players -->|"UDP 19132\npublic internet"| bedrock
+    admin -->|"join tailnet"| tailnet
+    ci -->|"join tailnet"| tailnet
+    tailnet -->|"SSH key over tailnet"| ssh
+```
+
+- **Players** connect directly to the public IP on UDP `19132`.
+- **Admin / CI** join the Tailscale tailnet and connect to the VM's MagicDNS hostname over SSH (port 22 is only reachable from within the tailnet, not from the public internet).
 
 ## Quick Start
 
