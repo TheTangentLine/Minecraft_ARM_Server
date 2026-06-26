@@ -227,21 +227,8 @@ Example summary log:
 2026-06-19 01:12:30 AEST | SUCCESS | public_ip=203.0.113.42
 ```
 
-**Optional — cron on an always-on host** (e.g. Raspberry Pi):
-
-1. Copy the repo, `terraform/terraform.tfstate`, and `~/.oci/config` + API key to that host.
-2. Fix `key_file` in `~/.oci/config` to the path on that machine (not your laptop path).
-3. Add a cron job — the script handles logging; do **not** redirect stdout to the summary log:
-
-```cron
-*/5 * * * * cd /home/<user>/Minecraft_ARM_Server && PATH=/usr/local/bin:/usr/bin:/bin INTERVAL=300 MAX_ATTEMPTS=1 /usr/bin/make tf-retry
-```
-
-4. Watch progress: `tail -f /tmp/tf-retry.log` (summary) or `tail -f /tmp/tf-retry-raw.log` (full output).
-5. Remove the cron line after you see `SUCCESS` in the summary log.
-
-> [!NOTE]
-> Only one machine should run `terraform apply` at a time. Stop any foreground `make tf-retry` on your laptop before enabling cron elsewhere.
+> [!TIP]
+> For unattended 24/7 retrying on a Raspberry Pi (or any always-on Linux host), see [raspberry-pi/README.md](raspberry-pi/README.md).
 
 ---
 
